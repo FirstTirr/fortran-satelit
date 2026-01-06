@@ -1,0 +1,18 @@
+# Build artifacts
+build/
+exe/
+*.o
+*.mod
+*.exe
+
+# Data and Logs
+*.csv
+*.dat
+
+# Python
+__pycache__/
+*.pyc
+
+# OS
+.DS_Store
+Thumbs.db
