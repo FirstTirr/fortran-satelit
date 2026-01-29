@@ -215,7 +215,13 @@ Menunggu perintah...</pre
           const result = await response.json();
 
           if (!response.ok) {
-            throw new Error(result.error || "Terjadi kesalahan sistem.");
+            // Tampilkan debug info lengkap jika ada
+            const debugMsg =
+              result.error +
+              (result.files_in_base
+                ? "\nDebug Files: " + JSON.stringify(result.files_in_base)
+                : "");
+            throw new Error(debugMsg || "Terjadi kesalahan sistem.");
           }
 
           logPanel.textContent += "\n> Simulasi Fortran selesai.";

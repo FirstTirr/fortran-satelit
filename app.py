@@ -28,8 +28,8 @@ if os.name == 'nt': # Windows
     WORK_DIR = BASE_DIR
 else: # Linux (Vercel/Docker)
     EXE_NAME = 'orbit_sim_linux' 
-    # File berada di root (overwrite placeholder)
-    EXE_PATH = os.path.join(BASE_DIR, EXE_NAME)
+    # File berada di folder bin (yang sudah di-track git)
+    EXE_PATH = os.path.join(BASE_DIR, 'bin', EXE_NAME)
     # Gunakan /tmp sebagai direktori kerja agar bisa write (Read-Only FS protection)
     WORK_DIR = '/tmp' 
     
@@ -66,12 +66,14 @@ def run_simulation():
         # 1. Run the Fortran Executable
         if not os.path.exists(EXE_PATH):
             # Debugging info
-            files_in_root = os.listdir(BASE_DIR)
-            return jsonify({
+            debug_info = {
                 'error': f"Executable not found at {EXE_PATH}. Please build the project first.",
-                'debug_files': files_in_root,
-                'cwd': os.getcwd()
-            }), 500
+                'cwd': os.getcwd(),
+                'base_dir': BASE_DIR,
+                'files_in_base': os.listdir(BASE_DIR),
+                'files_in_bin': os.listdir(os.path.join(BASE_DIR, 'bin')) if os.path.exists(os.path.join(BASE_DIR, 'bin')) else 'bin folder missing'
+            }
+            return jsonify(debug_info), 500
 
         # Run process with user inputs
         # Inputs expected by main.f90:
