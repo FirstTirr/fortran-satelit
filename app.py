@@ -28,7 +28,8 @@ if os.name == 'nt': # Windows
     WORK_DIR = BASE_DIR
 else: # Linux (Vercel/Docker)
     EXE_NAME = 'orbit_sim_linux' # Nama file hasil compile di build_vercel.sh
-    EXE_PATH = os.path.join(BASE_DIR, 'exe', EXE_NAME)
+    # Gunakan folder 'bin' karena 'exe' di-ignore oleh git dan Vercel
+    EXE_PATH = os.path.join(BASE_DIR, 'bin', EXE_NAME)
     # Gunakan /tmp sebagai direktori kerja agar bisa write (Read-Only FS protection)
     WORK_DIR = '/tmp' 
     
@@ -48,6 +49,10 @@ DATA_PATH = os.path.join(WORK_DIR, 'orbit_data.csv')
 def index():
     # Serve the index.html file from the ui folder
     return send_from_directory('ui', 'index.html')
+
+@app.route('/favicon.ico')
+def favicon():
+    return '', 204
 
 @app.route('/run-simulation', methods=['POST'])
 def run_simulation():
