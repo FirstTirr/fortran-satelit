@@ -15,21 +15,25 @@ echo "Installing Python dependencies..."
 pip install -r requirements.txt
 
 # 3. Compile Fortran Code
-# We strictly specify the output and correct source order
-# We use -static flags so we don't depend on system .so libraries at runtime
-# NOTE: Outputting to 'bin' folder because 'exe' is strictly git-ignored and Vercel discards ignored folders
+# We output to the root directory to overwrite the placeholder file
 echo "Compiling Fortran..."
-mkdir -p bin
 gfortran -O3 \
     src/mod_precision.f90 \
     src/mod_constants.f90 \
     src/mod_physics.f90 \
     src/main.f90 \
-    -o bin/orbit_sim_linux \
+    -o orbit_sim_linux \
     -static-libgfortran -static-libquadmath
 
 # 4. Permissions
-chmod +x bin/orbit_sim_linux
+chmod +x orbit_sim_linux
+
+echo "Build Directory Contents:"
+ls -la
+
+echo "-----------------------------------"
+echo "Build and Compilation Complete"
+echo "-----------------------------------"
 
 echo "-----------------------------------"
 echo "Build and Compilation Complete"
