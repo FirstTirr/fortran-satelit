@@ -1,0 +1,350 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Visualisasi Orbit Satelit (v2)</title>
+    <!-- Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Plotly.js for 3D graphing -->
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <style>
+      body {
+        background-color: #f0f2f5;
+      }
+      .loader {
+        border: 4px solid #f3f3f3;
+        border-top: 4px solid #3498db;
+        border-radius: 50%;
+        width: 30px;
+        height: 30px;
+        animation: spin 1s linear infinite;
+        display: inline-block;
+      }
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+    </style>
+  </head>
+  <body class="p-8">
+    <div class="max-w-6xl mx-auto bg-white p-6 rounded-lg shadow-md">
+      <header class="mb-6 border-b pb-4">
+        <h1 class="text-3xl font-bold text-gray-800">
+          Sistem Simulasi Orbit Satelit
+        </h1>
+        <p class="text-gray-600 mt-2">
+          Frontend: HTML/JS | Backend: Python (Flask) | Komputasi: Fortran
+        </p>
+      </header>
+
+      <!-- Input Parameters Section -->
+      <section class="mb-6 bg-gray-50 p-4 rounded-lg border">
+        <h2 class="text-lg font-semibold mb-4 text-gray-700">
+          Parameter Simulasi
+        </h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <!-- Input 1: Altitude -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1"
+              >1. Ketinggian (km)</label
+            >
+            <input
+              type="number"
+              id="inpAltitude"
+              value="400"
+              min="100"
+              class="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 focus:outline-none"
+              placeholder="Contoh: 400"
+            />
+            <p class="text-xs text-gray-500 mt-1">400 (ISS), 35786 (GEO)</p>
+          </div>
+
+          <!-- Input 2: Velocity -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1"
+              >2. Kecepatan Awal (m/s)</label
+            >
+            <input
+              type="number"
+              id="inpVelocity"
+              value="0"
+              class="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 focus:outline-none"
+              placeholder="0 = Otomatis"
+            />
+            <p class="text-xs text-gray-500 mt-1">
+              Ketik 0 untuk Auto Circular
+            </p>
+          </div>
+
+          <!-- Input 3: Duration -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1"
+              >3. Durasi (detik)</label
+            >
+            <input
+              type="number"
+              id="inpDuration"
+              value="7000"
+              min="100"
+              class="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 focus:outline-none"
+              placeholder="Contoh: 6000"
+            />
+            <p class="text-xs text-gray-500 mt-1">~6000s untuk 1x orbit LEO</p>
+          </div>
+        </div>
+      </section>
+
+      <section
+        class="mb-6 flex flex-wrap gap-4 items-center justify-between bg-white p-2 rounded"
+      >
+        <div class="flex gap-4 items-center">
+          <button
+            id="runBtn"
+            onclick="runSimulation()"
+            class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded transition duration-200 flex items-center gap-2"
+          >
+            <span>Jalankan Simulasi</span>
+          </button>
+          <div
+            id="status"
+            class="text-gray-700 font-medium hidden flex items-center gap-2"
+          >
+            <div class="loader"></div>
+            Memproses...
+          </div>
+          <div id="errorMessage" class="text-red-600 font-bold hidden"></div>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <label class="font-semibold text-gray-700 text-sm"
+            >Mode Kamera:</label
+          >
+          <select
+            id="viewMode"
+            onchange="redrawPlot()"
+            class="p-2 border rounded text-sm bg-gray-50 hover:bg-gray-100 cursor-pointer"
+          >
+            <option value="scale">🌎 Skala Bumi Penuh (Real)</option>
+            <option value="auto">🛰️ Fokus Satelit (Auto Zoom)</option>
+          </select>
+        </div>
+      </section>
+
+      <section class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- 3D Plot Area -->
+        <div
+          class="lg:col-span-2 bg-gray-50 border rounded-lg h-[600px]"
+          id="orbitPlot"
+        >
+          <!-- Plotly chart will be drawn here -->
+          <div class="flex items-center justify-center h-full text-gray-400">
+            Klik "Jalankan Simulasi" untuk melihat orbit.
+          </div>
+        </div>
+
+        <!-- Stats / Info Area -->
+        <div class="bg-gray-50 border rounded-lg p-4">
+          <h2 class="text-xl font-semibold mb-4">Parameter Orbit</h2>
+          <div class="space-y-3" id="statsPanel">
+            <p class="text-sm">Silakan jalankan simulasi untuk melihat data.</p>
+          </div>
+
+          <h2 class="text-xl font-semibold mt-6 mb-4">Log Sistem</h2>
+          <pre
+            id="systemLog"
+            class="bg-gray-900 text-green-400 p-3 rounded text-xs h-64 overflow-y-auto font-mono"
+          >
+Menunggu perintah...</pre
+          >
+        </div>
+      </section>
+    </div>
+
+    <script>
+      async function runSimulation() {
+        const btn = document.getElementById("runBtn");
+        const status = document.getElementById("status");
+        const errorMsg = document.getElementById("errorMessage");
+        const logPanel = document.getElementById("systemLog");
+
+        // Get Input Values
+        const altitude = document.getElementById("inpAltitude").value;
+        const velocity = document.getElementById("inpVelocity").value;
+        const duration = document.getElementById("inpDuration").value;
+
+        // Reset UI
+        btn.disabled = true;
+        btn.classList.add("opacity-50");
+        status.classList.remove("hidden");
+        errorMsg.classList.add("hidden");
+        logPanel.textContent += "\n> Memulai simulasi...";
+        logPanel.textContent += `\n> Alt: ${altitude}km, Vel: ${velocity}m/s, T: ${duration}s`;
+
+        try {
+          // Call Python Backend
+          const response = await fetch("http://127.0.0.1:5000/run-simulation", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              altitude: altitude,
+              velocity: velocity,
+              duration: duration,
+            }),
+          });
+          const result = await response.json();
+
+          if (!response.ok) {
+            throw new Error(result.error || "Terjadi kesalahan sistem.");
+          }
+
+          logPanel.textContent += "\n> Simulasi Fortran selesai.";
+          logPanel.textContent += "\n> " + (result.message || "Data diterima.");
+
+          // Store data and visualize
+          lastResultData = result.data;
+          updatePlot(result.data);
+          updateStats(result.data);
+        } catch (err) {
+          console.error(err);
+          errorMsg.textContent = "Error: " + err.message;
+          errorMsg.classList.remove("hidden");
+          logPanel.textContent += "\n> ERROR: " + err.message;
+        } finally {
+          btn.disabled = false;
+          btn.classList.remove("opacity-50");
+          status.classList.add("hidden");
+        }
+      }
+
+      function redrawPlot() {
+        if (lastResultData) {
+          console.log("Redrawing plot with new mode...");
+          updatePlot(lastResultData);
+        }
+      }
+
+      function updatePlot(data) {
+        console.log("Plotting data points:", data.x ? data.x.length : 0);
+        if (!data.x || data.x.length === 0) {
+          document.getElementById("systemLog").textContent +=
+            "\n> WARNING: Data kosong.";
+          return;
+        }
+
+        const mode = document.getElementById("viewMode").value;
+        const R_earth = 6371000;
+        let layout = {};
+        let earthTrace = {};
+
+        // --- MODE 1: SCALE (REALISTIC SPHERE) ---
+        if (mode === "scale") {
+          // Use a fixed extensive range so we can see the whole orbit
+          const maxVal = Math.max(
+            Math.max(...data.x.map(Math.abs)),
+            Math.max(...data.y.map(Math.abs)),
+            R_earth * 1.5,
+          );
+          const limitRange = [-maxVal * 1.2, maxVal * 1.2];
+
+          // Earth as Mesh Sphere
+          earthTrace = {
+            type: "mesh3d",
+            x: [],
+            y: [],
+            z: [],
+            alphahull: 0,
+            opacity: 0.1,
+            color: "blue",
+            name: "Bumi",
+          };
+          const steps = 20;
+          for (let i = 0; i <= steps; i++) {
+            const theta = (i * Math.PI) / steps;
+            for (let j = 0; j <= steps; j++) {
+              const phi = (j * 2 * Math.PI) / steps;
+              earthTrace.x.push(R_earth * Math.sin(theta) * Math.cos(phi));
+              earthTrace.y.push(R_earth * Math.sin(theta) * Math.sin(phi));
+              earthTrace.z.push(R_earth * Math.cos(theta));
+            }
+          }
+
+          layout = {
+            title: "Trajektori Orbit (Mode: Skala Bumi)",
+            autosize: true,
+            height: 600,
+            margin: { l: 0, r: 0, b: 0, t: 30 },
+            scene: {
+              aspectmode: "cube",
+              xaxis: { title: "X (m)", range: limitRange },
+              yaxis: { title: "Y (m)", range: limitRange },
+              zaxis: { title: "Z (m)", range: limitRange },
+              camera: { eye: { x: 1.5, y: 1.5, z: 1.5 } },
+            },
+          };
+        }
+
+        // --- MODE 2: AUTO (SATELLITE FOCUS) ---
+        else {
+          // Earth as simple dot
+          earthTrace = {
+            x: [0],
+            y: [0],
+            z: [0],
+            mode: "markers",
+            name: "Bumi (Pusat)",
+            marker: { color: "blue", size: 8, symbol: "circle" },
+            type: "scatter3d",
+          };
+
+          layout = {
+            title: "Trajektori Orbit (Mode: Fokus)",
+            autosize: true,
+            height: 600,
+            margin: { l: 0, r: 0, b: 0, t: 30 },
+            scene: {
+              aspectmode: "data", // Follows data shape
+              dragmode: "orbit",
+              xaxis: { title: "X (m)" }, // Auto range
+              yaxis: { title: "Y (m)" },
+              zaxis: { title: "Z (m)" },
+            },
+          };
+        }
+
+        const traceOrbit = {
+          x: data.x,
+          y: data.y,
+          z: data.z,
+          mode: "lines",
+          name: "Lintasan Satelit",
+          line: { color: "#1f77b4", width: 4 },
+          type: "scatter3d",
+        };
+
+        Plotly.newPlot("orbitPlot", [earthTrace, traceOrbit], layout);
+      }
+
+      function updateStats(data) {
+        const container = document.getElementById("statsPanel");
+        if (!data.time || data.time.length === 0) return;
+
+        const lastIdx = data.time.length - 1;
+
+        container.innerHTML = `
+                <div class="flex justify-between border-b py-1"><span>Durasi:</span> <strong>${data.time[lastIdx].toFixed(2)} s</strong></div>
+                <div class="flex justify-between border-b py-1"><span>Posisi Akhir X:</span> <strong>${data.x[lastIdx].toExponential(2)} m</strong></div>
+                <div class="flex justify-between border-b py-1"><span>Posisi Akhir Y:</span> <strong>${data.y[lastIdx].toExponential(2)} m</strong></div>
+                <div class="flex justify-between border-b py-1"><span>Posisi Akhir Z:</span> <strong>${data.z[lastIdx].toExponential(2)} m</strong></div>
+                <div class="flex justify-between border-b py-1"><span>Jumlah Data:</span> <strong>${data.time.length} titik</strong></div>
+            `;
+      }
+    </script>
+  </body>
+</html>

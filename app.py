@@ -1,0 +1,89 @@
+from flask import Flask, jsonify, send_from_directory, request
+import subprocess
+import os
+import pandas as pd
+import sys
+
+app = Flask(__name__, static_folder='ui')
+
+# Enable CORS manually to allow requests from Live Server (port 5500)
+@app.after_request
+def after_request(response):
+    response.headers.add('Access-Control-Allow-Origin', '*')
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+    response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+    # Prevent caching
+    response.headers.add('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
+    response.headers.add('Pragma', 'no-cache')
+    response.headers.add('Expires', '0')
+    return response
+
+# Configuration
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+# Detect OS to determine executable name
+if os.name == 'nt': # Windows
+    EXE_NAME = 'orbit_sim.exe'
+    EXE_PATH = os.path.join(BASE_DIR, 'exe', EXE_NAME)
+else: # Linux (Docker/Production)
+    EXE_NAME = 'orbit_sim'
+    # In Docker, we usually compile to the root or a specific bin folder. 
+    # Let's assume it's in the same dir or bin.
+    EXE_PATH = os.path.join(BASE_DIR, EXE_NAME)
+
+DATA_PATH = os.path.join(BASE_DIR, 'orbit_data.csv')
+
+@app.route('/')
+def index():
+    # Serve the index.html file from the ui folder
+    return send_from_directory('ui', 'index.html')
+
+@app.route('/run-simulation', methods=['POST'])
+def run_simulation():
+    try:
+        # Get parameters from request or use defaults
+        data = request.get_json() or {}
+        altitude = str(data.get('altitude', '400'))
+        velocity = str(data.get('velocity', '0'))
+        duration = str(data.get('duration', '7000'))
+
+        # 1. Run the Fortran Executable
+        if not os.path.exists(EXE_PATH):
+            return jsonify({'error': f"Executable not found at {EXE_PATH}. Please build the project first."}), 500
+
+        # Run process with user inputs
+        # Inputs expected by main.f90:
+        # 1. Altitude (km)
+        # 2. Velocity (m/s) -> 0 for Auto
+        # 3. Duration (s)
+        input_str = f"{altitude}\n{velocity}\n{duration}\n"
+        
+        result = subprocess.run([EXE_PATH], cwd=BASE_DIR, input=input_str, capture_output=True, text=True)
+        
+        if result.returncode != 0:
+            return jsonify({'error': 'Simulation failed', 'details': result.stderr}), 500
+
+        # 2. Read the generated CSV output
+        if not os.path.exists(DATA_PATH):
+            return jsonify({'error': 'Output file orbit_data.csv not found.'}), 500
+
+        # Read CSV (Skipping the unit/header line if necessary, adjusting based on your Main.f90 output)
+        # Using delim_whitespace=True for Fortran's default spacing output
+        df = pd.read_csv(DATA_PATH, delim_whitespace=True, skiprows=1, names=['Time', 'X', 'Y', 'Z', 'Vx', 'Vy', 'Vz'])
+
+        # 3. Convert to JSON for the web
+        data = {
+            'time': df['Time'].tolist(),
+            'x': df['X'].tolist(),
+            'y': df['Y'].tolist(),
+            'z': df['Z'].tolist()
+        }
+        
+        return jsonify({'status': 'success', 'data': data, 'message': result.stdout})
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+if __name__ == '__main__':
+    print(f"Starting server... Open http://localhost:5000 in your browser")
+    app.run(debug=True, port=5000)

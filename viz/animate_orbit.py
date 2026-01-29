@@ -103,14 +103,9 @@ def animate_orbit():
         
         return line, point
 
-    # Create animation
-    # frames = number of steps
-    # interval = delay in ms
-    # Optimized: skip frames more often and increase delay to reduce CPU load
     skip = 15 
     frames_indices = range(0, len(t), skip)
     
-    # interval=50ms means max 20 FPS, which is smoother for heavy 3D plots
     anim = FuncAnimation(fig, update, frames=frames_indices, interval=50, blit=False)
     
     print("Close the window to end the animation script.")
