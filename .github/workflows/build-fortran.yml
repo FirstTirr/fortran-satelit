@@ -10,17 +10,22 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
-    container: amazonlinux:2
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
-      - name: Install gfortran
-        run: yum install -y gcc-gfortran
-      - name: Build Fortran binary
-        run: |
-          mkdir -p bin
-          gfortran -O3 src/mod_precision.f90 src/mod_constants.f90 src/mod_physics.f90 src/main.f90 -o bin/orbit_sim_linux -static-libgfortran -static-libquadmath
-      - name: Upload binary to repo (auto-commit)
+
+      - name: Build in Amazon Linux 2
+        uses: addnab/docker-run-action@v3
+        with:
+          image: amazonlinux:2
+          options: -v ${{ github.workspace }}:/workspace
+          run: |
+            yum install -y gcc-gfortran git
+            cd /workspace
+            mkdir -p bin
+            gfortran -O3 src/mod_precision.f90 src/mod_constants.f90 src/mod_physics.f90 src/main.f90 -o bin/orbit_sim_linux -static-libgfortran -static-libquadmath
+
+      - name: Commit and push binary
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
