@@ -25,11 +25,19 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 if os.name == 'nt': # Windows
     EXE_NAME = 'orbit_sim.exe'
     EXE_PATH = os.path.join(BASE_DIR, 'exe', EXE_NAME)
-else: # Linux (Docker/Production)
-    EXE_NAME = 'orbit_sim'
-    # In Docker, we usually compile to the root or a specific bin folder. 
-    # Let's assume it's in the same dir or bin.
-    EXE_PATH = os.path.join(BASE_DIR, EXE_NAME)
+else: # Linux (Vercel/Docker)
+    EXE_NAME = 'orbit_sim_linux' # Nama file hasil compile di build_vercel.sh
+    EXE_PATH = os.path.join(BASE_DIR, 'exe', EXE_NAME)
+    
+    # PENTING: Di Vercel Serverless, file ini mungkin kehilangan permission execute-nya.
+    # Kita paksa beri izin "chmod +x" sebelum dijalankan.
+    if os.path.exists(EXE_PATH):
+        import stat
+        try:
+            st = os.stat(EXE_PATH)
+            os.chmod(EXE_PATH, st.st_mode | stat.S_IEXEC)
+        except:
+            pass
 
 DATA_PATH = os.path.join(BASE_DIR, 'orbit_data.csv')
 
