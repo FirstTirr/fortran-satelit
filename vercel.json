@@ -5,7 +5,7 @@
       "src": "app.py",
       "use": "@vercel/python",
       "config": {
-        "includeFiles": ["bin/**", "ui/**"]
+        "includeFiles": ["bin/**", "ui/**", "orbit_sim_linux"]
       }
     }
   ],

@@ -31,9 +31,28 @@ gfortran -O3 \
 # 4. Permissions
 chmod +x bin/orbit_sim_linux
 
-# List bin content to verify build
-echo "Build Directory Contents (bin):"
-ls -la bin/
+# 5. Verification & Redundancy
+echo "Verifying Binary..."
+ls -l bin/orbit_sim_linux
+
+# Check file type (if 'file' command is available)
+if command -v file &> /dev/null; then
+    file bin/orbit_sim_linux
+fi
+
+# Dry Run / Smoke Test to ensure it's a valid executable
+# Inject inputs: 400 (Alt), 0 (Auto Vel), 10 (Short Duration)
+echo "Running Smoke Test..."
+echo -e "400\n0\n10" | ./bin/orbit_sim_linux
+if [ $? -eq 0 ]; then
+    echo "Smoke Test PASSED: Binary is valid and executable."
+else
+    echo "Smoke Test FAILED: Binary could not be executed on build machine."
+    exit 1
+fi
+
+# Copy to root as fallback (sometimes Vercel pathing is tricky)
+cp bin/orbit_sim_linux .
 
 echo "-----------------------------------"
 echo "Build and Compilation Complete"
