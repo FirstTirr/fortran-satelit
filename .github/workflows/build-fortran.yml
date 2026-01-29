@@ -25,14 +25,14 @@ jobs:
             mkdir -p bin
             gfortran -O3 src/mod_precision.f90 src/mod_constants.f90 src/mod_physics.f90 src/main.f90 -o bin/orbit_sim_linux -static-libgfortran
 
-        - name: Cek dependency binary (ldd)
-          uses: addnab/docker-run-action@v3
-          with:
-            image: amazonlinux:2
-            options: -v ${{ github.workspace }}:/workspace
-            run: |
-              cd /workspace
-              ldd bin/orbit_sim_linux || echo "ldd failed"
+      - name: Cek dependency binary (ldd)
+        uses: addnab/docker-run-action@v3
+        with:
+          image: amazonlinux:2
+          options: -v ${{ github.workspace }}:/workspace
+          run: |
+            cd /workspace
+            ldd bin/orbit_sim_linux || echo "ldd failed"
 
       - name: Commit and push binary
         run: |
