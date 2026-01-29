@@ -16,9 +16,10 @@ pip install -r requirements.txt
 
 # 3. Compile Fortran Code
 echo "Compiling Fortran..."
-# Ensure bin directory exists (though git should preserve it now)
+# Ensure bin directory exists
 mkdir -p bin
 
+# Compile to a clean filename (not conflicting with the Git placeholder)
 gfortran -O3 \
     src/mod_precision.f90 \
     src/mod_constants.f90 \
@@ -30,6 +31,7 @@ gfortran -O3 \
 # 4. Permissions
 chmod +x bin/orbit_sim_linux
 
+# List bin content to verify build
 echo "Build Directory Contents (bin):"
 ls -la bin/
 
