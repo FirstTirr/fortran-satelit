@@ -22,64 +22,23 @@ def after_request(response):
 # Configuration
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# Detect OS to determine executable name
 if os.name == 'nt': # Windows
     EXE_NAME = 'orbit_sim.exe'
     EXE_PATH = os.path.join(BASE_DIR, 'exe', EXE_NAME)
     WORK_DIR = BASE_DIR
-else: # Linux (Vercel/Docker)
-    EXE_NAME = 'orbit_sim_linux' 
-    EXE_PATH = None
-    
-    # Strategy 1: Search in site-packages (This is where build_vercel.sh puts it)
-    try:
-        import site
-        # Get all site-package directories
-        site_paths = site.getsitepackages()
-        user_site = site.getusersitepackages()
-        if isinstance(user_site, str):
-            site_paths.append(user_site)
-            
-        print(f"DEBUG: Searching for binary in sites: {site_paths}")
-        
-        for sp in site_paths:
-            candidate = os.path.join(sp, 'fortran_bin', 'orbit_sim_linux')
-            if os.path.exists(candidate):
-                print(f"DEBUG: Found binary at {candidate}")
-                # Must copy to /tmp to execute (AWS Lambda limitation)
-                target = os.path.join('/tmp', EXE_NAME)
-                # Only copy if source is newer or target doesn't exist
-                if not os.path.exists(target):
-                    shutil.copy(candidate, target)
-                    os.chmod(target, 0o755)
-                
-                EXE_PATH = target
-                break
-    except Exception as e:
-        print(f"DEBUG: Error scanning site-packages: {e}")
-
-    # Strategy 2: Fallback to bin (dev environment)
-    if not EXE_PATH:
-        candidate = os.path.join(BASE_DIR, 'bin', EXE_NAME)
-        if os.path.exists(candidate):
-            EXE_PATH = candidate
-
-    # Fallback default (will likely fail but useful for error reporting)
-    if not EXE_PATH:
-        EXE_PATH = os.path.join('/tmp', EXE_NAME)
-
-    WORK_DIR = '/tmp'
-    
-    # Validation
-    if EXE_PATH and os.path.exists(EXE_PATH):
+else: # Linux (Vercel)
+    EXE_NAME = 'orbit_sim_linux'
+    EXE_PATH = os.path.join(BASE_DIR, 'bin', EXE_NAME)
+    WORK_DIR = BASE_DIR
+    # Validation: check ELF header
+    if os.path.exists(EXE_PATH):
         try:
-            # Check for ELF header to avoid running text files
             with open(EXE_PATH, 'rb') as f:
                 header = f.read(4)
                 if header != b'\x7fELF':
                     print(f"WARNING: {EXE_PATH} header is {header}, not ELF!")
-        except:
-            pass
+        except Exception as e:
+            print(f"Error reading ELF header: {e}")
             
     # Debug Route
     @app.route('/debug-system')

@@ -1,0 +1,28 @@
+name: Build Fortran Linux Binary
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Install gfortran
+        run: sudo apt-get update && sudo apt-get install -y gfortran
+
+      - name: Build Fortran binary
+        run: |
+          mkdir -p bin
+          gfortran -O3 src/mod_precision.f90 src/mod_constants.f90 src/mod_physics.f90 src/main.f90 -o bin/orbit_sim_linux -static-libgfortran -static-libquadmath
+
+      - name: Upload binary to repo (auto-commit)
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add bin/orbit_sim_linux
+          git commit -m "Auto-build Linux binary for Vercel" || echo "No changes to commit"
+          git push
