@@ -23,7 +23,7 @@ jobs:
             yum install -y gcc-gfortran git
             cd /workspace
             mkdir -p bin
-            gfortran -O3 src/mod_precision.f90 src/mod_constants.f90 src/mod_physics.f90 src/main.f90 -o bin/orbit_sim_linux -static-libgfortran
+            gfortran -O3 src/mod_precision.f90 src/mod_constants.f90 src/mod_physics.f90 src/main.f90 -o bin/orbit_sim_linux -static-libgfortran -static-libgcc -Wl,--exclude-libs,libquadmath.a
 
       - name: Cek dependency binary (ldd)
         uses: addnab/docker-run-action@v3
