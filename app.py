@@ -129,7 +129,13 @@ def run_simulation():
         result = subprocess.run([EXE_PATH], cwd=WORK_DIR, input=input_str, capture_output=True, text=True)
         
         if result.returncode != 0:
-            return jsonify({'error': 'Simulation failed', 'details': result.stderr}), 500
+            return jsonify({
+                'error': 'Simulation failed',
+                'details': result.stderr,
+                'stdout': result.stdout,
+                'exe_path': EXE_PATH,
+                'cwd': WORK_DIR
+            }), 500
 
         # 2. Read the generated CSV output
         if not os.path.exists(DATA_PATH):
