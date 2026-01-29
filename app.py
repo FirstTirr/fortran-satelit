@@ -94,4 +94,5 @@ def run_simulation():
 
 if __name__ == '__main__':
     print(f"Starting server... Open http://localhost:5000 in your browser")
-    app.run(debug=True, port=5000)
+    # Host 0.0.0.0 is required for Docker/Vercel and allows LAN access
+    app.run(host='0.0.0.0', debug=True, port=5000)

@@ -186,8 +186,22 @@ Menunggu perintah...</pre
         logPanel.textContent += `\n> Alt: ${altitude}km, Vel: ${velocity}m/s, T: ${duration}s`;
 
         try {
+          // Determine API URL dynamically
+          // If we are on Vercel/Production (port 80/443), use relative path
+          // If we are on Live Server (port 5500), use localhost:5000 or same IP:5000
+          let apiUrl = "/run-simulation";
+
+          if (
+            window.location.port === "5500" ||
+            window.location.port === "5501"
+          ) {
+            // Development Mode (Live Server)
+            // Use the same hostname (e.g., 192.168.x.x) but port 5000
+            apiUrl = `${window.location.protocol}//${window.location.hostname}:5000/run-simulation`;
+          }
+
           // Call Python Backend
-          const response = await fetch("http://127.0.0.1:5000/run-simulation", {
+          const response = await fetch(apiUrl, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
