@@ -37,13 +37,19 @@ else: # Linux (Vercel/Docker)
     # Check if we are running the text placeholder by mistake
     if os.path.exists(EXE_PATH):
         try:
+            file_size = os.path.getsize(EXE_PATH)
+            print(f"DEBUG: Found executable at {EXE_PATH}. Size: {file_size} bytes.")
+            
             with open(EXE_PATH, 'rb') as f:
                 header = f.read(4)
                 # ELF magic number is \x7fELF. If not found, it might be a text file.
                 if header != b'\x7fELF':
                     print(f"WARNING: {EXE_PATH} does not appear to be an ELF binary. Header: {header}")
-        except:
-            pass 
+                    # If it's the placeholder text, raise informative error
+                    if file_size < 1000:
+                         print("DEBUG: This looks like a placeholder text file.")
+        except Exception as e:
+            print(f"DEBUG: Error inspecting binary: {e}") 
     
     # PENTING: Di Vercel Serverless, file ini mungkin kehilangan permission execute-nya.
     # Kita paksa beri izin "chmod +x" sebelum dijalankan.
@@ -83,7 +89,9 @@ def run_simulation():
                 'cwd': os.getcwd(),
                 'base_dir': BASE_DIR,
                 'files_in_base': os.listdir(BASE_DIR),
-                'files_in_bin': os.listdir(os.path.join(BASE_DIR, 'bin')) if os.path.exists(os.path.join(BASE_DIR, 'bin')) else 'bin folder missing'
+                # Check safe path for listdir
+                'files_in_bin': os.listdir(os.path.join(BASE_DIR, 'bin')) if os.path.exists(os.path.join(BASE_DIR, 'bin')) else 'bin folder missing',
+                'env_path': os.environ.get('PATH')
             }
             return jsonify(debug_info), 500
 
