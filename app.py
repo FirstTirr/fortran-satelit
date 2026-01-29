@@ -25,9 +25,12 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 if os.name == 'nt': # Windows
     EXE_NAME = 'orbit_sim.exe'
     EXE_PATH = os.path.join(BASE_DIR, 'exe', EXE_NAME)
+    WORK_DIR = BASE_DIR
 else: # Linux (Vercel/Docker)
     EXE_NAME = 'orbit_sim_linux' # Nama file hasil compile di build_vercel.sh
     EXE_PATH = os.path.join(BASE_DIR, 'exe', EXE_NAME)
+    # Gunakan /tmp sebagai direktori kerja agar bisa write (Read-Only FS protection)
+    WORK_DIR = '/tmp' 
     
     # PENTING: Di Vercel Serverless, file ini mungkin kehilangan permission execute-nya.
     # Kita paksa beri izin "chmod +x" sebelum dijalankan.
@@ -39,7 +42,7 @@ else: # Linux (Vercel/Docker)
         except:
             pass
 
-DATA_PATH = os.path.join(BASE_DIR, 'orbit_data.csv')
+DATA_PATH = os.path.join(WORK_DIR, 'orbit_data.csv')
 
 @app.route('/')
 def index():
@@ -66,7 +69,11 @@ def run_simulation():
         # 3. Duration (s)
         input_str = f"{altitude}\n{velocity}\n{duration}\n"
         
-        result = subprocess.run([EXE_PATH], cwd=BASE_DIR, input=input_str, capture_output=True, text=True)
+        # Ensure WORK_DIR exists (especially /tmp logic)
+        if not os.path.exists(WORK_DIR):
+             os.makedirs(WORK_DIR, exist_ok=True)
+
+        result = subprocess.run([EXE_PATH], cwd=WORK_DIR, input=input_str, capture_output=True, text=True)
         
         if result.returncode != 0:
             return jsonify({'error': 'Simulation failed', 'details': result.stderr}), 500
