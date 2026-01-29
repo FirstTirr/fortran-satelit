@@ -2,7 +2,8 @@ from flask import Flask, jsonify, send_from_directory, request
 import subprocess
 import os
 import pandas as pd
-import sys
+import shutil
+import site
 
 app = Flask(__name__, static_folder='ui')
 
@@ -28,23 +29,38 @@ if os.name == 'nt': # Windows
     WORK_DIR = BASE_DIR
 else: # Linux (Vercel/Docker)
     EXE_NAME = 'orbit_sim_linux' 
-    # Try finding the binary in multiple locations
-    POSSIBLE_PATHS = [
-        os.path.join(BASE_DIR, 'bin', EXE_NAME), # Primary
-        os.path.join(BASE_DIR, EXE_NAME),        # Fallback (Root)
-        os.path.join('/var/task/bin', EXE_NAME), # Vercel absolute
-        os.path.join('/var/task', EXE_NAME)      # Vercel absolute root
-    ]
-    
     EXE_PATH = None
-    for path in POSSIBLE_PATHS:
-        if os.path.exists(path):
-            EXE_PATH = path
-            break
-            
-    # Default to bin if none found (for error reporting)
+    
+    # Strategy 1: Look in site-packages (where build_vercel.sh installed it)
+    try:
+        site_packages = site.getsitepackages()
+        for sp in site_packages:
+            potential_path = os.path.join(sp, 'orbit_sim_data', 'orbit_sim_linux_bin')
+            if os.path.exists(potential_path):
+                # Found it! Copy to /tmp to ensure execution
+                target_path = os.path.join('/tmp', EXE_NAME)
+                shutil.copy(potential_path, target_path)
+                os.chmod(target_path, 0o755)
+                EXE_PATH = target_path
+                break
+    except Exception as e:
+        print(f"Error searching site-packages: {e}")
+
+    # Strategy 2: Fallbacks (bin folder, root, etc.)
     if not EXE_PATH:
-        EXE_PATH = os.path.join(BASE_DIR, 'bin', EXE_NAME)
+        POSSIBLE_PATHS = [
+            os.path.join(BASE_DIR, 'bin', EXE_NAME), 
+            os.path.join(BASE_DIR, EXE_NAME),
+            os.path.join('/var/task/bin', EXE_NAME)
+        ]
+        for path in POSSIBLE_PATHS:
+            if os.path.exists(path):
+                EXE_PATH = path
+                break
+    
+    # Default to /tmp path for error reporting
+    if not EXE_PATH:
+        EXE_PATH = os.path.join('/tmp', EXE_NAME)
 
     WORK_DIR = '/tmp'
     
@@ -68,6 +84,10 @@ else: # Linux (Vercel/Docker)
             'exe_name': EXE_NAME,
             'resolved_exe_path': EXE_PATH,
             'exe_exists': os.path.exists(EXE_PATH) if EXE_PATH else False,
+            'site_packages_scan': [
+                (sp, os.path.exists(os.path.join(sp, 'orbit_sim_data', 'orbit_sim_linux_bin'))) 
+                for sp in site.getsitepackages()
+            ],
             'files_in_root': os.listdir(BASE_DIR),
             'files_in_bin': os.listdir(os.path.join(BASE_DIR, 'bin')) if os.path.exists(os.path.join(BASE_DIR, 'bin')) else 'bin missing',
             'env_user': os.environ.get('USER'),

@@ -35,24 +35,35 @@ chmod +x bin/orbit_sim_linux
 echo "Verifying Binary..."
 ls -l bin/orbit_sim_linux
 
-# Check file type (if 'file' command is available)
+# Check file type
 if command -v file &> /dev/null; then
     file bin/orbit_sim_linux
 fi
 
-# Dry Run / Smoke Test to ensure it's a valid executable
-# Inject inputs: 400 (Alt), 0 (Auto Vel), 10 (Short Duration)
+# Dry Run / Smoke Test
 echo "Running Smoke Test..."
 echo -e "400\n0\n10" | ./bin/orbit_sim_linux
 if [ $? -eq 0 ]; then
-    echo "Smoke Test PASSED: Binary is valid and executable."
+    echo "Smoke Test PASSED."
 else
-    echo "Smoke Test FAILED: Binary could not be executed on build machine."
+    echo "Smoke Test FAILED."
     exit 1
 fi
 
-# Copy to root as fallback (sometimes Vercel pathing is tricky)
-cp bin/orbit_sim_linux .
+# 6. PERSISTENCE HACK (Save to site-packages)
+# Vercel discards untracked build artifacts, but bundles site-packages.
+# We determine the site-packages path and copy the binary there.
+echo "Installing binary to site-packages for persistence..."
+SITE_PACKAGES=$(python3 -c "import site; print(site.getsitepackages()[0])") 
+echo "Site Packages: $SITE_PACKAGES"
+
+# Copy binary to site-packages
+mkdir -p "$SITE_PACKAGES/orbit_sim_data"
+cp bin/orbit_sim_linux "$SITE_PACKAGES/orbit_sim_data/orbit_sim_linux_bin"
+touch "$SITE_PACKAGES/orbit_sim_data/__init__.py"
+
+echo "Listing site-package data:"
+ls -la "$SITE_PACKAGES/orbit_sim_data/"
 
 echo "-----------------------------------"
 echo "Build and Compilation Complete"
