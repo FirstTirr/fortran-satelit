@@ -31,34 +31,40 @@ else: # Linux (Vercel/Docker)
     EXE_NAME = 'orbit_sim_linux' 
     EXE_PATH = None
     
-    # Strategy 1: Look in site-packages (where build_vercel.sh installed it)
+    # Strategy 1: Search in site-packages (This is where build_vercel.sh puts it)
     try:
-        site_packages = site.getsitepackages()
-        for sp in site_packages:
-            potential_path = os.path.join(sp, 'orbit_sim_data', 'orbit_sim_linux_bin')
-            if os.path.exists(potential_path):
-                # Found it! Copy to /tmp to ensure execution
-                target_path = os.path.join('/tmp', EXE_NAME)
-                shutil.copy(potential_path, target_path)
-                os.chmod(target_path, 0o755)
-                EXE_PATH = target_path
+        import site
+        # Get all site-package directories
+        site_paths = site.getsitepackages()
+        user_site = site.getusersitepackages()
+        if isinstance(user_site, str):
+            site_paths.append(user_site)
+            
+        print(f"DEBUG: Searching for binary in sites: {site_paths}")
+        
+        for sp in site_paths:
+            candidate = os.path.join(sp, 'fortran_bin', 'orbit_sim_linux')
+            if os.path.exists(candidate):
+                print(f"DEBUG: Found binary at {candidate}")
+                # Must copy to /tmp to execute (AWS Lambda limitation)
+                target = os.path.join('/tmp', EXE_NAME)
+                # Only copy if source is newer or target doesn't exist
+                if not os.path.exists(target):
+                    shutil.copy(candidate, target)
+                    os.chmod(target, 0o755)
+                
+                EXE_PATH = target
                 break
     except Exception as e:
-        print(f"Error searching site-packages: {e}")
+        print(f"DEBUG: Error scanning site-packages: {e}")
 
-    # Strategy 2: Fallbacks (bin folder, root, etc.)
+    # Strategy 2: Fallback to bin (dev environment)
     if not EXE_PATH:
-        POSSIBLE_PATHS = [
-            os.path.join(BASE_DIR, 'bin', EXE_NAME), 
-            os.path.join(BASE_DIR, EXE_NAME),
-            os.path.join('/var/task/bin', EXE_NAME)
-        ]
-        for path in POSSIBLE_PATHS:
-            if os.path.exists(path):
-                EXE_PATH = path
-                break
-    
-    # Default to /tmp path for error reporting
+        candidate = os.path.join(BASE_DIR, 'bin', EXE_NAME)
+        if os.path.exists(candidate):
+            EXE_PATH = candidate
+
+    # Fallback default (will likely fail but useful for error reporting)
     if not EXE_PATH:
         EXE_PATH = os.path.join('/tmp', EXE_NAME)
 
@@ -84,10 +90,7 @@ else: # Linux (Vercel/Docker)
             'exe_name': EXE_NAME,
             'resolved_exe_path': EXE_PATH,
             'exe_exists': os.path.exists(EXE_PATH) if EXE_PATH else False,
-            'site_packages_scan': [
-                (sp, os.path.exists(os.path.join(sp, 'orbit_sim_data', 'orbit_sim_linux_bin'))) 
-                for sp in site.getsitepackages()
-            ],
+            'site_packages_scan': [sp for sp in site.getsitepackages()] + ([site.getusersitepackages()] if isinstance(site.getusersitepackages(), str) else []),
             'files_in_root': os.listdir(BASE_DIR),
             'files_in_bin': os.listdir(os.path.join(BASE_DIR, 'bin')) if os.path.exists(os.path.join(BASE_DIR, 'bin')) else 'bin missing',
             'env_user': os.environ.get('USER'),

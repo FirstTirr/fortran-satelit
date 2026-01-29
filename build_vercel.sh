@@ -50,20 +50,28 @@ else
     exit 1
 fi
 
-# 6. PERSISTENCE HACK (Save to site-packages)
-# Vercel discards untracked build artifacts, but bundles site-packages.
-# We determine the site-packages path and copy the binary there.
-echo "Installing binary to site-packages for persistence..."
-SITE_PACKAGES=$(python3 -c "import site; print(site.getsitepackages()[0])") 
-echo "Site Packages: $SITE_PACKAGES"
+# 6. PERSISTENCE HACK (Use Python's dist-packages/site-packages)
+# This is the only folder guaranteed to be carried over from Build to Runtime by Vercel for Python apps
+echo "Installing binary to Python Lib..."
 
-# Copy binary to site-packages
-mkdir -p "$SITE_PACKAGES/orbit_sim_data"
-cp bin/orbit_sim_linux "$SITE_PACKAGES/orbit_sim_data/orbit_sim_linux_bin"
-touch "$SITE_PACKAGES/orbit_sim_data/__init__.py"
+# Get the location where pip installs packages
+LIB_PATH=$(python3 -c "import site; print(site.getsitepackages()[0])")
 
-echo "Listing site-package data:"
-ls -la "$SITE_PACKAGES/orbit_sim_data/"
+# Ensure the directory exists
+DATA_DIR="$LIB_PATH/fortran_bin"
+mkdir -p "$DATA_DIR"
+
+# Copy the binary
+cp bin/orbit_sim_linux "$DATA_DIR/orbit_sim_linux"
+chmod 755 "$DATA_DIR/orbit_sim_linux"
+
+# Verify installation
+echo "Binary installed to: $DATA_DIR/orbit_sim_linux"
+ls -l "$DATA_DIR/orbit_sim_linux"
+
+# Create a marker file so we can find it easily via Python import later if needed
+site_pkg_marker="$DATA_DIR/__init__.py"
+touch "$site_pkg_marker"
 
 echo "-----------------------------------"
 echo "Build and Compilation Complete"
